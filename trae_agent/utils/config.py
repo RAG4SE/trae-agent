@@ -6,8 +6,6 @@ from dataclasses import dataclass, field
 
 import yaml
 
-from trae_agent.utils.legacy_config import LegacyConfig
-
 
 class ConfigError(Exception):
     pass
@@ -320,76 +318,6 @@ class Config:
                 api_key=api_key,
             )
         return self
-
-    @classmethod
-    def create_from_legacy_config(
-        cls,
-        *,
-        legacy_config: LegacyConfig | None = None,
-        config_file: str | None = None,
-    ) -> "Config":
-        if legacy_config and config_file:
-            raise ConfigError("Only one of legacy_config or config_file should be provided")
-
-        if config_file:
-            legacy_config = LegacyConfig(config_file)
-        elif not legacy_config:
-            raise ConfigError("No legacy_config or config_file provided")
-
-        model_provider = ModelProvider(
-            api_key=legacy_config.model_providers[legacy_config.default_provider].api_key,
-            base_url=legacy_config.model_providers[legacy_config.default_provider].base_url,
-            api_version=legacy_config.model_providers[legacy_config.default_provider].api_version,
-            provider=legacy_config.default_provider,
-        )
-
-        model_config = ModelConfig(
-            model=legacy_config.model_providers[legacy_config.default_provider].model,
-            model_provider=model_provider,
-            max_tokens=legacy_config.model_providers[legacy_config.default_provider].max_tokens,
-            temperature=legacy_config.model_providers[legacy_config.default_provider].temperature,
-            top_p=legacy_config.model_providers[legacy_config.default_provider].top_p,
-            top_k=legacy_config.model_providers[legacy_config.default_provider].top_k,
-            parallel_tool_calls=legacy_config.model_providers[
-                legacy_config.default_provider
-            ].parallel_tool_calls,
-            max_retries=legacy_config.model_providers[legacy_config.default_provider].max_retries,
-            candidate_count=legacy_config.model_providers[
-                legacy_config.default_provider
-            ].candidate_count,
-            stop_sequences=legacy_config.model_providers[
-                legacy_config.default_provider
-            ].stop_sequences,
-        )
-        mcp_servers_config = {
-            k: MCPServerConfig(**vars(v)) for k, v in legacy_config.mcp_servers.items()
-        }
-        trae_agent_config = TraeAgentConfig(
-            max_steps=legacy_config.max_steps,
-            enable_lakeview=legacy_config.enable_lakeview,
-            model=model_config,
-            allow_mcp_servers=legacy_config.allow_mcp_servers,
-            mcp_servers_config=mcp_servers_config,
-        )
-
-        if trae_agent_config.enable_lakeview:
-            lakeview_config = LakeviewConfig(
-                model=model_config,
-            )
-        else:
-            lakeview_config = None
-
-        return cls(
-            trae_agent=trae_agent_config,
-            lakeview=lakeview_config,
-            model_providers={
-                legacy_config.default_provider: model_provider,
-            },
-            models={
-                "default_model": model_config,
-            },
-        )
-
 
 def resolve_config_value(
     *,
