@@ -22,6 +22,7 @@ TraeAgentToolNames = [
     "str_replace_based_edit_tool",
     "sequentialthinking",
     "json_edit_tool",
+    "json_formatter",
     "task_done",
     "bash",
 ]
@@ -33,8 +34,7 @@ class TraeAgent(BaseAgent):
     def __init__(
         self,
         trae_agent_config: TraeAgentConfig,
-        docker_config: dict | None = None,
-        docker_keep: bool = True,
+        allow_edit: bool = True,
     ):
         """Initialize TraeAgent.
 
@@ -43,8 +43,8 @@ class TraeAgent(BaseAgent):
                    Required if llm_client is not provided.
             llm_client: Optional pre-configured LLMClient instance.
                        If provided, it will be used instead of creating a new one from config.
-            docker_config: Optional configuration for running in a Docker environment.
         """
+        self.allow_edit: bool = allow_edit
         self.project_path: str = ""
         self.base_commit: str | None = None
         self.must_patch: str = "false"
@@ -57,10 +57,17 @@ class TraeAgent(BaseAgent):
         )
         self.mcp_tools: list[Tool] = []
         self.mcp_clients: list[MCPClient] = []  # Keep track of MCP clients for cleanup
-        self.docker_config = docker_config
-        super().__init__(
-            agent_config=trae_agent_config, docker_config=docker_config, docker_keep=docker_keep
-        )
+
+        # Filter out edit tools if allow_edit is False
+        if not allow_edit:
+            edit_tools = {"str_replace_based_edit_tool", "json_edit_tool"}
+            filtered_tools = [tool for tool in trae_agent_config.tools if tool not in edit_tools]
+            # Create a new config with filtered tools
+            from dataclasses import replace
+            filtered_config = replace(trae_agent_config, tools=filtered_tools)
+            super().__init__(agent_config=filtered_config)
+        else:
+            super().__init__(agent_config=trae_agent_config)
 
     async def initialise_mcp(self):
         """Async factory to create and initialize TraeAgent."""
@@ -129,10 +136,7 @@ class TraeAgent(BaseAgent):
             raise AgentError("Project path is required")
 
         self.project_path = extra_args.get("project_path", "")
-        if self.docker_config:
-            user_message += r"[Project root path]:\workspace\n\n"
-        else:
-            user_message += f"[Project root path]:\n{self.project_path}\n\n"
+        user_message += f"[Project root path]:\n{self.project_path}\n\n"
 
         if "issue" in extra_args:
             user_message += f"[Problem statement]: We're currently solving the following issue within our repository. Here's the issue text:\n{extra_args['issue']}\n"
@@ -171,7 +175,37 @@ class TraeAgent(BaseAgent):
 
     def get_system_prompt(self) -> str:
         """Get the system prompt for TraeAgent."""
-        return TRAE_AGENT_SYSTEM_PROMPT
+        base_prompt = TRAE_AGENT_SYSTEM_PROMPT
+
+        # If allow_edit is False, add analysis-only instructions
+        if not self.allow_edit:
+            analysis_prompt = """
+
+**ANALYSIS MODE**: You are operating in analysis-only mode with no editing capabilities.
+- Your goal is to analyze the codebase and provide clear, comprehensive answers
+- Focus on understanding, explaining, and providing insights
+- Do not attempt to modify any files
+- Provide direct answers to the user's questions
+"""
+            base_prompt += analysis_prompt
+
+        # Check if the task requires JSON output and add JSON formatting requirements
+        if hasattr(self, '_task') and self._task:
+            task_lower = self._task.lower()
+            json_indicators = ['json format', 'json output', 'return json', 'json格式', 'json输出']
+            if any(indicator in task_lower for indicator in json_indicators):
+                json_prompt = """
+
+**JSON OUTPUT REQUIREMENT**: The user has requested a JSON format response.
+- When you have completed your analysis and are ready to provide the final answer,
+  you MUST use the 'json_formatter' tool to format your response as valid JSON
+- The json_formatter tool will extract and format your answer properly
+- This ensures your final response is properly structured JSON without extra text
+- Use the json_formatter tool as your final step before calling task_done
+"""
+                base_prompt += json_prompt
+
+        return base_prompt
 
     @override
     def reflect_on_result(self, tool_results: list[ToolResult]) -> str | None:

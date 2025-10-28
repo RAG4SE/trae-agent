@@ -1,0 +1,41 @@
+# Example configuration for Kimi provider
+agents:
+    trae_agent:
+        enable_lakeview: true
+        model: kimi_model
+        max_steps: 200
+        tools:
+            - bash
+            - str_replace_based_edit_tool
+            - sequentialthinking
+            - json_formatter
+            - task_done
+
+allow_mcp_servers:
+    - playwright
+
+mcp_servers:
+    playwright:
+        command: npx
+        args:
+            - "@playwright/mcp@0.0.27"
+
+lakeview:
+    model: kimi_model
+
+model_providers:
+    kimi:
+        api_key: your_kimi_api_key
+        provider: kimi
+        base_url: https://api.moonshot.cn/v1
+
+models:
+    kimi_model:
+        model_provider: kimi
+        model: moonshot-v1-8k  # or moonshot-v1-32k, moonshot-v1-128k
+        max_tokens: 4096
+        temperature: 0.1
+        top_p: 1
+        top_k: 0
+        max_retries: 10
+        parallel_tool_calls: true

@@ -17,7 +17,7 @@ For technical details please refer to [our technical report](https://arxiv.org/a
 ## ✨ Features
 
 - 🌊 **Lakeview**: Provides short and concise summarisation for agent steps
-- 🤖 **Multi-LLM Support**: Works with OpenAI, Anthropic, Doubao, Azure, OpenRouter, Ollama and Google Gemini APIs
+- 🤖 **Multi-LLM Support**: Works with OpenAI, Anthropic, Doubao, Azure, OpenRouter, Ollama, Google Gemini, Lingxi, Kimi and DeepSeek APIs
 - 🛠️ **Rich Tool Ecosystem**: File editing, bash execution, sequential thinking, and more
 - 🎯 **Interactive Mode**: Conversational interface for iterative development
 - 📊 **Trajectory Recording**: Detailed logging of all agent actions for debugging and analysis
@@ -157,6 +157,15 @@ trae-cli run "Generate documentation" --provider openrouter --model "openai/gpt-
 
 # Doubao
 trae-cli run "Refactor the database module" --provider doubao --model doubao-seed-1.6
+
+# Lingxi (AntChat)
+trae-cli run "Analyze this codebase" --provider lingxi --model qwen3-coder-plus
+
+# Kimi (Moonshot)
+trae-cli run "Review this pull request" --provider kimi --model moonshot-v1-8k
+
+# DeepSeek
+trae-cli run "Debug this issue" --provider deepseek --model deepseek-coder
 
 # Ollama (local models)
 trae-cli run "Comment this code" --provider ollama --model qwen3

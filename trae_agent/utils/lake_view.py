@@ -162,8 +162,9 @@ class LakeView:
                 messages=llm_messages,
                 reuse_history=False,
             )
-
+            # haoyang
             content = "<tags>" + llm_response.content.lstrip()
+            print(f'llm_response content:\n{content}')
 
             matched_tags: list[str] = tags_re.findall(content)
             tags: list[str] = [tag.strip() for tag in matched_tags[0].split(",")]

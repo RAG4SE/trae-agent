@@ -22,6 +22,10 @@ class LLMProvider(Enum):
     OPENROUTER = "openrouter"
     DOUBAO = "doubao"
     GOOGLE = "google"
+    DASHSCOPE = "dashscope"
+    LINGXI = "lingxi"
+    KIMI = "kimi"
+    DEEPSEEK = "deepseek"
 
 
 class LLMClient:
@@ -60,7 +64,22 @@ class LLMClient:
                 from .google_client import GoogleClient
 
                 self.client = GoogleClient(model_config)
+            case LLMProvider.DASHSCOPE:
+                from .dashscope_client import DashScopeClient
 
+                self.client = DashScopeClient(model_config)
+            case LLMProvider.LINGXI:
+                from .lingxi_client import LingxiClient
+
+                self.client = LingxiClient(model_config)
+            case LLMProvider.KIMI:
+                from .kimi_client import KimiClient
+
+                self.client = KimiClient(model_config)
+            case LLMProvider.DEEPSEEK:
+                from .deepseek_client import DeepSeekClient
+
+                self.client = DeepSeekClient(model_config)
     def set_trajectory_recorder(self, recorder: TrajectoryRecorder | None) -> None:
         """Set the trajectory recorder for the underlying client."""
         self.client.set_trajectory_recorder(recorder)

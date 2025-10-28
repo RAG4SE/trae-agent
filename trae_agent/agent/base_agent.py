@@ -9,11 +9,9 @@ from abc import ABC, abstractmethod
 from typing import Union
 
 from trae_agent.agent.agent_basics import AgentExecution, AgentState, AgentStep, AgentStepState
-from trae_agent.agent.docker_manager import DockerManager
 from trae_agent.tools import tools_registry
 from trae_agent.tools.base import Tool, ToolCall, ToolExecutor, ToolResult
 from trae_agent.tools.ckg.ckg_database import clear_older_ckg
-from trae_agent.tools.docker_tool_executor import DockerToolExecutor
 from trae_agent.utils.cli import CLIConsole
 from trae_agent.utils.config import AgentConfig, ModelConfig
 from trae_agent.utils.llm_clients.llm_basics import LLMMessage, LLMResponse
@@ -24,11 +22,9 @@ from trae_agent.utils.trajectory_recorder import TrajectoryRecorder
 class BaseAgent(ABC):
     """Base class for LLM-based agents."""
 
-    _tool_caller: Union[ToolExecutor, DockerToolExecutor]
+    _tool_caller: ToolExecutor
 
-    def __init__(
-        self, agent_config: AgentConfig, docker_config: dict | None = None, docker_keep: bool = True
-    ):
+    def __init__(self, agent_config: AgentConfig):
         """Initialize the agent.
         Args:
             agent_config: Configuration object containing model parameters and other settings.
@@ -43,34 +39,8 @@ class BaseAgent(ABC):
             tools_registry[tool_name](model_provider=self._model_config.model_provider.provider)
             for tool_name in agent_config.tools
         ]
-        self.docker_keep = docker_keep
-        self.docker_manager: DockerManager | None = None
         original_tool_executor = ToolExecutor(self._tools)
-        if docker_config:
-            project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            # tools_dir = os.path.join(project_root, 'tools')
-
-            tools_dir = os.path.join(project_root, "dist")
-
-            is_interactive_mode = False
-            self.docker_manager = DockerManager(
-                image=docker_config.get("image"),
-                container_id=docker_config.get("container_id"),
-                dockerfile_path=docker_config.get("dockerfile_path"),
-                docker_image_file=docker_config.get("docker_image_file"),
-                workspace_dir=docker_config["workspace_dir"],
-                tools_dir=tools_dir,
-                interactive=is_interactive_mode,
-            )
-            self._tool_caller = DockerToolExecutor(
-                original_executor=original_tool_executor,
-                docker_manager=self.docker_manager,
-                docker_tools=["bash", "str_replace_based_edit_tool", "json_edit_tool"],
-                host_workspace_dir=docker_config.get("workspace_dir"),
-                container_workspace_dir=self.docker_manager.container_workspace,
-            )
-        else:
-            self._tool_caller = original_tool_executor
+        self._tool_caller = original_tool_executor
 
         self._cli_console: CLIConsole | None = None
 
@@ -148,9 +118,6 @@ class BaseAgent(ABC):
         """Execute a task using the agent."""
         import time
 
-        if self.docker_manager:
-            self.docker_manager.start()
-
         start_time = time.time()
         execution = AgentExecution(task=self._task, steps=[])
         step: AgentStep | None = None
@@ -183,9 +150,6 @@ class BaseAgent(ABC):
         except Exception as e:
             execution.final_result = f"Agent execution failed: {str(e)}"
 
-        finally:
-            if self.docker_manager and not self.docker_keep:
-                self.docker_manager.stop()
 
         # Ensure tool resources are released whether an exception occurs or not.
         await self._close_tools()

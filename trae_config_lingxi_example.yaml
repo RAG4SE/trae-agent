@@ -1,0 +1,41 @@
+# Example configuration for Lingxi provider
+agents:
+    trae_agent:
+        enable_lakeview: true
+        model: lingxi_model
+        max_steps: 200
+        tools:
+            - bash
+            - str_replace_based_edit_tool
+            - sequentialthinking
+            - json_formatter
+            - task_done
+
+allow_mcp_servers:
+    - playwright
+
+mcp_servers:
+    playwright:
+        command: npx
+        args:
+            - "@playwright/mcp@0.0.27"
+
+lakeview:
+    model: lingxi_model
+
+model_providers:
+    lingxi:
+        api_key: your_lingxi_api_key
+        provider: lingxi
+        base_url: https://antchat.alipay.com/v1
+
+models:
+    lingxi_model:
+        model_provider: lingxi
+        model: qwen3-coder-plus  # or your preferred model
+        max_tokens: 4096
+        temperature: 0.1
+        top_p: 1
+        top_k: 0
+        max_retries: 10
+        parallel_tool_calls: true

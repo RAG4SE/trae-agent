@@ -18,12 +18,12 @@ class Agent:
         config: Config,
         trajectory_file: str | None = None,
         cli_console: CLIConsole | None = None,
-        docker_config: dict | None = None,
-        docker_keep: bool = True,
+        allow_edit: bool = True,
     ):
         if isinstance(agent_type, str):
             agent_type = AgentType(agent_type)
         self.agent_type: AgentType = agent_type
+        self.allow_edit: bool = allow_edit
 
         # Set up trajectory recording
         if trajectory_file is not None:
@@ -43,7 +43,7 @@ class Agent:
                 self.agent_config: AgentConfig = config.trae_agent
 
                 self.agent: TraeAgent = TraeAgent(
-                    self.agent_config, docker_config=docker_config, docker_keep=docker_keep
+                    self.agent_config, allow_edit=allow_edit
                 )
 
                 self.agent.set_cli_console(cli_console)
@@ -97,4 +97,68 @@ class Agent:
         if cli_console_task:
             await cli_console_task
 
+        # When allow_edit=False or execution is successful, prioritize json_formatter result
+        if execution.success:
+            # First check if json_formatter was used and return its result
+            json_result = self._extract_json_formatter_result()
+            if json_result:
+                return json_result
+
+            # If allow_edit is False, extract the final answer from trajectory
+            if not self.allow_edit:
+                final_answer = self._extract_final_answer()
+                if final_answer:
+                    return final_answer
+
         return execution
+
+    def _extract_final_answer(self):
+        """Extract the final answer from trajectory when allow_edit is False."""
+        import json
+        try:
+            with open(self.trajectory_file, 'r', encoding='utf-8') as f:
+                trajectory_data = json.load(f)
+
+            # Look for the last meaningful response
+            for interaction in reversed(trajectory_data.get('llm_interactions', [])):
+                if 'response' in interaction and 'content' in interaction['response']:
+                    content = interaction['response']['content'].strip()
+                    if content and len(content) > 20:
+                        return content
+            return None
+        except Exception:
+            return None
+
+    def _extract_json_formatter_result(self):
+        """Extract JSON formatter result from trajectory."""
+        import json
+        try:
+            with open(self.trajectory_file, 'r', encoding='utf-8') as f:
+                trajectory_data = json.load(f)
+
+            # Look for json_formatter results in agent_steps (primary location)
+            for step in reversed(trajectory_data.get('agent_steps', [])):
+                if 'tool_calls' in step and step['tool_calls']:
+                    # Check if this step contains a json_formatter call
+                    has_json_formatter = any(
+                        tool_call.get('name') == 'json_formatter'
+                        for tool_call in step['tool_calls'] if tool_call
+                    )
+
+                    if has_json_formatter and 'tool_results' in step:
+                        # Find the corresponding tool result
+                        for result in step['tool_results']:
+                            if result.get('success') and result.get('result'):
+                                result_content = result.get('result', '')
+                                # Validate it's JSON-like
+                                if result_content.startswith('{') and result_content.endswith('}'):
+                                    try:
+                                        # Validate it's valid JSON
+                                        json.loads(result_content)
+                                        return result_content
+                                    except json.JSONDecodeError:
+                                        continue
+
+            return None
+        except Exception:
+            return None
