@@ -5,7 +5,6 @@
 
 import json
 import re
-from typing import override
 
 from trae_agent.tools.base import Tool, ToolCall, ToolCallArguments, ToolExecResult, ToolParameter
 
@@ -17,12 +16,10 @@ class JSONFormatterTool(Tool):
         """Initialize the JSON formatter tool."""
         super().__init__(model_provider)
 
-    @override
     def get_name(self) -> str:
         """Get the tool name."""
         return "json_formatter"
 
-    @override
     def get_description(self) -> str:
         """Get the tool description."""
         return (
@@ -31,7 +28,6 @@ class JSONFormatterTool(Tool):
             "a JSON format response. This tool will extract and format your answer as valid JSON."
         )
 
-    @override
     def get_parameters(self) -> list[ToolParameter]:
         """Get the tool parameters."""
         return [
@@ -49,7 +45,6 @@ class JSONFormatterTool(Tool):
             ),
         ]
 
-    @override
     async def execute(self, arguments: ToolCallArguments) -> ToolExecResult:
         """Format the answer in JSON format."""
         try:

@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: MIT
 
 from pathlib import Path
-from typing import override
 
 from trae_agent.tools.base import Tool, ToolCallArguments, ToolExecResult, ToolParameter
 from trae_agent.tools.ckg.ckg_database import CKGDatabase
@@ -26,15 +25,12 @@ class CKGTool(Tool):
         # }
         self._ckg_databases: dict[Path, CKGDatabase] = {}
 
-    @override
     def get_model_provider(self) -> str | None:
         return self._model_provider
 
-    @override
     def get_name(self) -> str:
         return "ckg"
 
-    @override
     def get_description(self) -> str:
         return """Query the code knowledge graph of a codebase.
 * State is persistent across command calls and discussions with the user
@@ -47,7 +43,6 @@ class CKGTool(Tool):
 * The CKG is not completely accurate, and may not be able to find all functions or classes in the codebase.
 """
 
-    @override
     def get_parameters(self) -> list[ToolParameter]:
         return [
             ToolParameter(
@@ -77,7 +72,6 @@ class CKGTool(Tool):
             ),
         ]
 
-    @override
     async def execute(self, arguments: ToolCallArguments) -> ToolExecResult:
         command = str(arguments.get("command")) if "command" in arguments else None
         if command is None:

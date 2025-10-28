@@ -1,4 +1,3 @@
-from typing import override
 
 import mcp
 
@@ -11,19 +10,15 @@ class MCPTool(Tool):
         self.client = client
         self.tool = tool
 
-    @override
     def get_model_provider(self) -> str | None:
         return self._model_provider
 
-    @override
     def get_name(self) -> str:
         return self.tool.name
 
-    @override
     def get_description(self) -> str:
         return self.tool.description
 
-    @override
     def get_parameters(self) -> list[ToolParameter]:
         # For OpenAI models, all parameters must be required=True
         # For other providers, optional parameters can have required=False
@@ -45,7 +40,6 @@ class MCPTool(Tool):
 
         return properties_to_parameter()
 
-    @override
     async def execute(self, arguments: ToolCallArguments) -> ToolExecResult:
         try:
             output = await self.client.call_tool(self.get_name(), arguments)

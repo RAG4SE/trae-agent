@@ -11,7 +11,6 @@
 
 import json
 from dataclasses import dataclass
-from typing import override
 
 from trae_agent.tools.base import Tool, ToolCallArguments, ToolExecResult, ToolParameter
 
@@ -36,11 +35,9 @@ class SequentialThinkingTool(Tool):
     Each thought can build on, question, or revise previous insights as understanding deepens.
     """
 
-    @override
     def get_name(self) -> str:
         return "sequentialthinking"
 
-    @override
     def get_description(self) -> str:
         return """A detailed tool for dynamic and reflective problem-solving through thoughts.
 This tool helps analyze problems through a flexible thinking process that can adapt and evolve.
@@ -97,7 +94,6 @@ You should:
 10. Provide a single, ideally correct answer as the final output
 11. Only set next_thought_needed to false when truly done and a satisfactory answer is reached"""
 
-    @override
     def get_parameters(self) -> list[ToolParameter]:
         return [
             ToolParameter(
@@ -156,7 +152,6 @@ You should:
         self.thought_history: list[ThoughtData] = []
         self.branches: dict[str, list[ThoughtData]] = {}
 
-    @override
     def get_model_provider(self) -> str | None:
         return self._model_provider
 
@@ -274,7 +269,6 @@ You should:
 │ {thought_data.thought.ljust(border_length - 2)} │
 └{border}┘"""
 
-    @override
     async def execute(self, arguments: ToolCallArguments) -> ToolExecResult:
         """Execute the sequential thinking tool."""
         try:

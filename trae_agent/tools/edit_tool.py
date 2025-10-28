@@ -10,7 +10,6 @@
 # This modified file is released under the same license.
 
 from pathlib import Path
-from typing import override
 
 from trae_agent.tools.base import Tool, ToolCallArguments, ToolError, ToolExecResult, ToolParameter
 from trae_agent.tools.run import maybe_truncate, run
@@ -30,15 +29,12 @@ class TextEditorTool(Tool):
     def __init__(self, model_provider: str | None = None) -> None:
         super().__init__(model_provider)
 
-    @override
     def get_model_provider(self) -> str | None:
         return self._model_provider
 
-    @override
     def get_name(self) -> str:
         return "str_replace_based_edit_tool"
 
-    @override
     def get_description(self) -> str:
         return """Custom editing tool for viewing, creating and editing files
 * State is persistent across command calls and discussions with the user
@@ -52,7 +48,6 @@ Notes for using the `str_replace` command:
 * The `new_str` parameter should contain the edited lines that should replace the `old_str`
 """
 
-    @override
     def get_parameters(self) -> list[ToolParameter]:
         """Get the parameters for the str_replace_based_edit_tool."""
         return [
@@ -97,7 +92,6 @@ Notes for using the `str_replace` command:
             ),
         ]
 
-    @override
     async def execute(self, arguments: ToolCallArguments) -> ToolExecResult:
         """Execute the str_replace_editor tool."""
         command = str(arguments["command"]) if "command" in arguments else None

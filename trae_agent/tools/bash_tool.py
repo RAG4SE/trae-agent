@@ -11,7 +11,6 @@
 
 import asyncio
 import os
-from typing import override
 
 from trae_agent.tools.base import Tool, ToolCallArguments, ToolError, ToolExecResult, ToolParameter
 
@@ -169,15 +168,12 @@ class BashTool(Tool):
         super().__init__(model_provider)
         self._session: _BashSession | None = None
 
-    @override
     def get_model_provider(self) -> str | None:
         return self._model_provider
 
-    @override
     def get_name(self) -> str:
         return "bash"
 
-    @override
     def get_description(self) -> str:
         return """Run commands in a bash shell
 * When invoking this tool, the contents of the "command" parameter does NOT need to be XML-escaped.
@@ -188,7 +184,6 @@ class BashTool(Tool):
 * Please run long lived commands in the background, e.g. 'sleep 10 &' or start a server in the background.
 """
 
-    @override
     def get_parameters(self) -> list[ToolParameter]:
         # For OpenAI models, all parameters must be required=True
         # For other providers, optional parameters can have required=False
@@ -209,7 +204,6 @@ class BashTool(Tool):
             ),
         ]
 
-    @override
     async def execute(self, arguments: ToolCallArguments) -> ToolExecResult:
         if arguments.get("restart"):
             if self._session:
@@ -237,7 +231,6 @@ class BashTool(Tool):
         except Exception as e:
             return ToolExecResult(error=f"Error running bash command: {e}", error_code=-1)
 
-    @override
     async def close(self):
         """Properly close self._process."""
         if self._session:

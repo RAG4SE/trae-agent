@@ -4,7 +4,6 @@
 """OpenAI API client wrapper with tool integration."""
 
 import json
-from typing import override
 
 import openai
 from openai.types.responses import (
@@ -33,7 +32,6 @@ class OpenAIClient(BaseLLMClient):
         self.client: openai.OpenAI = openai.OpenAI(api_key=self.api_key, base_url=self.base_url)
         self.message_history: ResponseInputParam = []
 
-    @override
     def set_chat_history(self, messages: list[LLMMessage]) -> None:
         """Set the chat history."""
         self.message_history = self.parse_messages(messages)
@@ -58,7 +56,6 @@ class OpenAIClient(BaseLLMClient):
             max_output_tokens=model_config.max_tokens,
         )
 
-    @override
     def chat(
         self,
         messages: list[LLMMessage],

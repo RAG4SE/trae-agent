@@ -47,24 +47,20 @@ class LingxiClient(OpenAICompatibleBase):
         )
 
     @property
-    @override
     def supports_structured_output(self) -> bool:
         """Check if the client supports structured output."""
         return True
 
     @property
-    @override
     def supports_tools(self) -> bool:
         """Check if the client supports tool calling."""
         return True
 
     @property
-    @override
     def supports_system_messages(self) -> bool:
         """Check if the client supports system messages."""
         return True
 
-    @override
     @retry_with(max_retries=3, base_delay=1.0, max_delay=60.0)
     async def call(self, messages: list[LLMMessage], **kwargs) -> LLMResponse:
         """Make an async call to the Lingxi API."""
@@ -108,7 +104,6 @@ class LingxiClient(OpenAICompatibleBase):
         # Convert response back to our format
         return self._convert_from_openai_response(completion)
 
-    @override
     @retry_with(max_retries=3, base_delay=1.0, max_delay=60.0)
     def call_sync(self, messages: list[LLMMessage], **kwargs) -> LLMResponse:
         """Make a synchronous call to the Lingxi API."""

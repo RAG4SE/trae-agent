@@ -7,7 +7,7 @@ import asyncio
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import TypeAlias, override
+from typing import TypeAlias
 
 ParamSchemaValue: TypeAlias = str | list[str] | bool | dict[str, object]
 Property: TypeAlias = dict[str, ParamSchemaValue]
@@ -54,7 +54,6 @@ class ToolCall:
     arguments: ToolCallArguments = field(default_factory=dict)
     id: str | None = None
 
-    @override
     def __str__(self) -> str:
         return f"ToolCall(name={self.name}, arguments={self.arguments}, call_id={self.call_id}, id={self.id})"
 

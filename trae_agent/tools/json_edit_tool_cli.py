@@ -52,23 +52,18 @@ class JSONEditTool(Tool):
     def __init__(self, model_provider: str | None = None) -> None:
         super().__init__(model_provider)
 
-    @override
     def get_model_provider(self) -> str | None:
         return self._model_provider
 
-    @override
     def get_name(self) -> str:
         return "json_edit_tool"
 
-    @override
     def get_description(self) -> str:
         return """..."""
 
-    @override
     def get_parameters(self) -> list[ToolParameter]:
         return []
 
-    @override
     async def execute(self, arguments: ToolCallArguments) -> ToolExecResult:
         raise NotImplementedError("This method is not used in CLI mode.")
 

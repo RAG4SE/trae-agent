@@ -5,7 +5,6 @@
 
 import asyncio
 import os
-from typing import override
 
 from rich.panel import Panel
 from rich.text import Text
@@ -34,7 +33,6 @@ class TokenDisplay(Static):
     input_tokens: reactive[int] = reactive(0)
     output_tokens: reactive[int] = reactive(0)
 
-    @override
     def render(self) -> Text:
         """Render the token display."""
         if self.total_tokens > 0:
@@ -76,7 +74,6 @@ class RichConsoleApp(App[None]):
 
         self.options: list[str] = ["help", "exit", "status", "clear"]
 
-    @override
     def compose(self) -> ComposeResult:
         """Compose the UI layout."""
         yield Header(show_clock=True)
@@ -279,7 +276,6 @@ class RichCLIConsole(CLIConsole):
         self.config_file = None
         self.trajectory_file = None
 
-    @override
     async def start(self):
         """Start the rich console application."""
         # Prevent multiple starts of the same app
@@ -297,7 +293,6 @@ class RichCLIConsole(CLIConsole):
         finally:
             self._is_running = False
 
-    @override
     def update_status(
         self, agent_step: AgentStep | None = None, agent_execution: AgentExecution | None = None
     ):
@@ -319,7 +314,6 @@ class RichCLIConsole(CLIConsole):
             if self.app and self.app.token_display:
                 self.app.token_display.update_tokens(agent_execution)
 
-    @override
     def print_task_details(self, details: dict[str, str]):
         """Print initial task configuration details."""
         if self.app and self.app.execution_log:
@@ -328,7 +322,6 @@ class RichCLIConsole(CLIConsole):
                 Panel(content, title="Task Details", border_style="blue")
             )
 
-    @override
     def print(self, message: str, color: str = "blue", bold: bool = False):
         """Print a message to the console."""
         if self.app and self.app.execution_log:
@@ -336,19 +329,16 @@ class RichCLIConsole(CLIConsole):
             formatted_message = f"[{color}]{formatted_message}[/{color}]"
             _ = self.app.execution_log.write(formatted_message)
 
-    @override
     def get_task_input(self) -> str | None:
         """Get task input from user (for interactive mode)."""
         # This method is not used in rich console as input is handled by the TUI
         return None
 
-    @override
     def get_working_dir_input(self) -> str:
         """Get working directory input from user (for interactive mode)."""
         # For now, return current directory. Could be enhanced with a dialog
         return os.getcwd()
 
-    @override
     def stop(self):
         """Stop the console and cleanup resources."""
         self.should_exit = True

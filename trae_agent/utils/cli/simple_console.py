@@ -4,7 +4,6 @@
 """Simple CLI Console implementation."""
 
 import asyncio
-from typing import override
 
 from rich.console import Console
 from rich.markdown import Markdown
@@ -37,7 +36,6 @@ class SimpleCLIConsole(CLIConsole):
         super().__init__(mode, lakeview_config)
         self.console: Console = Console()
 
-    @override
     def update_status(
         self, agent_step: AgentStep | None = None, agent_execution: AgentExecution | None = None
     ):
@@ -69,7 +67,6 @@ class SimpleCLIConsole(CLIConsole):
 
         self.agent_execution = agent_execution
 
-    @override
     async def start(self):
         """Start the console - wait for completion and then print summary."""
         while self.agent_execution is None or (
@@ -164,7 +161,6 @@ class SimpleCLIConsole(CLIConsole):
                 )
             )
 
-    @override
     def print_task_details(self, details: dict[str, str]):
         """Print initial task configuration details."""
         renderable = ""
@@ -179,14 +175,12 @@ class SimpleCLIConsole(CLIConsole):
             )
         )
 
-    @override
     def print(self, message: str, color: str = "blue", bold: bool = False):
         """Print a message to the console."""
         message = f"[bold]{message}[/bold]" if bold else message
         message = f"[{color}]{message}[/{color}]"
         self.console.print(message)
 
-    @override
     def get_task_input(self) -> str | None:
         """Get task input from user (for interactive mode)."""
         if self.mode != ConsoleMode.INTERACTIVE:
@@ -201,7 +195,6 @@ class SimpleCLIConsole(CLIConsole):
         except (EOFError, KeyboardInterrupt):
             return None
 
-    @override
     def get_working_dir_input(self) -> str:
         """Get working directory input from user (for interactive mode)."""
         if self.mode != ConsoleMode.INTERACTIVE:
@@ -213,7 +206,6 @@ class SimpleCLIConsole(CLIConsole):
         except (EOFError, KeyboardInterrupt):
             return ""
 
-    @override
     def stop(self):
         """Stop the console and cleanup resources."""
         # Simple console doesn't need explicit cleanup

@@ -7,7 +7,6 @@ Ollama API client wrapper with tool integration
 
 import json
 import uuid
-from typing import override
 
 import openai
 from ollama import chat as ollama_chat  # pyright: ignore[reportUnknownVariableType]
@@ -39,7 +38,6 @@ class OllamaClient(BaseLLMClient):
 
         self.message_history: ResponseInputParam = []
 
-    @override
     def set_chat_history(self, messages: list[LLMMessage]) -> None:
         self.message_history = self.parse_messages(messages)
 
@@ -68,7 +66,6 @@ class OllamaClient(BaseLLMClient):
             tools=tools_param,
         )
 
-    @override
     def chat(
         self,
         messages: list[LLMMessage],

@@ -5,7 +5,6 @@
 
 import json
 from abc import ABC, abstractmethod
-from typing import override
 
 import openai
 from openai.types.chat import (
@@ -71,7 +70,6 @@ class OpenAICompatibleClient(BaseLLMClient):
         self.client = provider_config.create_client(self.api_key, self.base_url, self.api_version)
         self.message_history: list[ChatCompletionMessageParam] = []
 
-    @override
     def set_chat_history(self, messages: list[LLMMessage]) -> None:
         """Set the chat history."""
         self.message_history = self.parse_messages(messages)
@@ -106,7 +104,6 @@ class OpenAICompatibleClient(BaseLLMClient):
             **token_params,
         )
 
-    @override
     def chat(
         self,
         messages: list[LLMMessage],

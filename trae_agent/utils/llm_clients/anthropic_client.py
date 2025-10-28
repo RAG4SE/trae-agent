@@ -4,7 +4,6 @@
 """Anthropic API client wrapper with tool integration."""
 
 import json
-from typing import override
 
 import anthropic
 from anthropic.types.tool_union_param import TextEditor20250429
@@ -28,7 +27,6 @@ class AnthropicClient(BaseLLMClient):
         self.message_history: list[anthropic.types.MessageParam] = []
         self.system_message: str | anthropic.NotGiven = anthropic.NOT_GIVEN
 
-    @override
     def set_chat_history(self, messages: list[LLMMessage]) -> None:
         """Set the chat history."""
         self.message_history = self.parse_messages(messages)
@@ -50,7 +48,6 @@ class AnthropicClient(BaseLLMClient):
             top_k=model_config.top_k,
         )
 
-    @override
     def chat(
         self,
         messages: list[LLMMessage],

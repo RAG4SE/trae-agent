@@ -7,7 +7,6 @@ import asyncio
 import contextlib
 import os
 import subprocess
-from typing import override
 
 from trae_agent.agent.agent_basics import AgentError, AgentExecution
 from trae_agent.agent.base_agent import BaseAgent
@@ -106,7 +105,6 @@ class TraeAgent(BaseAgent):
         else:
             return
 
-    @override
     def new_task(
         self,
         task: str,
@@ -156,7 +154,6 @@ class TraeAgent(BaseAgent):
                 max_steps=self._max_steps,
             )
 
-    @override
     async def execute_task(self) -> AgentExecution:
         """Execute the task and finalize trajectory recording."""
         execution = await super().execute_task()
@@ -207,7 +204,6 @@ class TraeAgent(BaseAgent):
 
         return base_prompt
 
-    @override
     def reflect_on_result(self, tool_results: list[ToolResult]) -> str | None:
         return None
 
@@ -259,14 +255,12 @@ class TraeAgent(BaseAgent):
 
         return "".join(filtered_lines)
 
-    @override
     def llm_indicates_task_completed(self, llm_response: LLMResponse) -> bool:
         """Check if the LLM indicates that the task is completed."""
         if llm_response.tool_calls is None:
             return False
         return any(tool_call.name == "task_done" for tool_call in llm_response.tool_calls)
 
-    @override
     def _is_task_completed(self, llm_response: LLMResponse) -> bool:
         """Enhanced task completion detection."""
         if self.must_patch == "true":
@@ -277,12 +271,10 @@ class TraeAgent(BaseAgent):
 
         return True
 
-    @override
     def task_incomplete_message(self) -> str:
         """Return a message indicating that the task is incomplete."""
         return "ERROR! Your Patch is empty. Please provide a patch that fixes the problem."
 
-    @override
     async def cleanup_mcp_clients(self) -> None:
         """Clean up all MCP clients to prevent async context leaks."""
         for client in self.mcp_clients:

@@ -5,7 +5,6 @@
 
 import json
 from pathlib import Path
-from typing import override
 
 from jsonpath_ng import Fields, Index
 from jsonpath_ng import parse as jsonpath_parse
@@ -20,15 +19,12 @@ class JSONEditTool(Tool):
     def __init__(self, model_provider: str | None = None) -> None:
         super().__init__(model_provider)
 
-    @override
     def get_model_provider(self) -> str | None:
         return self._model_provider
 
-    @override
     def get_name(self) -> str:
         return "json_edit_tool"
 
-    @override
     def get_description(self) -> str:
         return """Tool for editing JSON files with JSONPath expressions
 * Supports targeted modifications to JSON structures using JSONPath syntax
@@ -52,7 +48,6 @@ JSONPath syntax supported:
 - `[start:end]` - array slicing
 """
 
-    @override
     def get_parameters(self) -> list[ToolParameter]:
         """Get the parameters for the JSON edit tool."""
         return [
@@ -89,7 +84,6 @@ JSONPath syntax supported:
             ),
         ]
 
-    @override
     async def execute(self, arguments: ToolCallArguments) -> ToolExecResult:
         """Execute the JSON edit operation."""
         try:

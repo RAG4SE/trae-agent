@@ -6,7 +6,6 @@
 import json
 import traceback
 import uuid
-from typing import override
 
 from google import genai
 from google.genai import types
@@ -28,7 +27,6 @@ class GoogleClient(BaseLLMClient):
         self.message_history: list[types.Content] = []
         self.system_instruction: str | None = None
 
-    @override
     def set_chat_history(self, messages: list[LLMMessage]) -> None:
         """Set the chat history."""
         self.message_history, self.system_instruction = self.parse_messages(messages)
@@ -46,7 +44,6 @@ class GoogleClient(BaseLLMClient):
             config=generation_config,
         )
 
-    @override
     def chat(
         self,
         messages: list[LLMMessage],
