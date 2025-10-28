@@ -12,7 +12,6 @@ async def run_trae_agent():
     agent = Agent(
         agent_type="trae_agent",
         config=config,
-        cli_console=None,  # 不使用CLI界面
         trajectory_file=trajectory_file,  # 记录轨迹到文件
         allow_edit=False  # 不允许编辑，只分析和回答
     )

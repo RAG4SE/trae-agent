@@ -2,7 +2,6 @@ import asyncio
 import contextlib
 from enum import Enum
 
-from trae_agent.utils.cli.cli_console import CLIConsole
 from trae_agent.utils.config import AgentConfig, Config
 from trae_agent.utils.trajectory_recorder import TrajectoryRecorder
 
@@ -17,7 +16,6 @@ class Agent:
         agent_type: AgentType | str,
         config: Config,
         trajectory_file: str | None = None,
-        cli_console: CLIConsole | None = None,
         allow_edit: bool = True,
     ):
         if isinstance(agent_type, str):
@@ -46,14 +44,6 @@ class Agent:
                     self.agent_config, allow_edit=allow_edit
                 )
 
-                self.agent.set_cli_console(cli_console)
-
-        if cli_console:
-            if config.trae_agent.enable_lakeview:
-                cli_console.set_lakeview(config.lakeview)
-            else:
-                cli_console.set_lakeview(None)
-
         self.agent.set_trajectory_recorder(self.trajectory_recorder)
 
     async def run(
@@ -65,27 +55,7 @@ class Agent:
         self.agent.new_task(task, extra_args, tool_names)
 
         if self.agent.allow_mcp_servers:
-            if self.agent.cli_console:
-                self.agent.cli_console.print("Initialising MCP tools...")
             await self.agent.initialise_mcp()
-
-        if self.agent.cli_console:
-            task_details = {
-                "Task": task,
-                "Model Provider": self.agent_config.model.model_provider.provider,
-                "Model": self.agent_config.model.model,
-                "Max Steps": str(self.agent_config.max_steps),
-                "Trajectory File": self.trajectory_file,
-                "Tools": ", ".join([tool.name for tool in self.agent.tools]),
-            }
-            if extra_args:
-                for key, value in extra_args.items():
-                    task_details[key.capitalize()] = value
-            self.agent.cli_console.print_task_details(task_details)
-
-        cli_console_task = (
-            asyncio.create_task(self.agent.cli_console.start()) if self.agent.cli_console else None
-        )
 
         try:
             execution = await self.agent.execute_task()
@@ -93,9 +63,6 @@ class Agent:
             # Ensure MCP cleanup happens even if execution fails
             with contextlib.suppress(Exception):
                 await self.agent.cleanup_mcp_clients()
-
-        if cli_console_task:
-            await cli_console_task
 
         # When allow_edit=False or execution is successful, prioritize json_formatter result
         if execution.success:

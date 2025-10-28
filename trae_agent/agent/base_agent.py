@@ -12,7 +12,6 @@ from trae_agent.agent.agent_basics import AgentExecution, AgentState, AgentStep,
 from trae_agent.tools import tools_registry
 from trae_agent.tools.base import Tool, ToolCall, ToolExecutor, ToolResult
 from trae_agent.tools.ckg.ckg_database import clear_older_ckg
-from trae_agent.utils.cli import CLIConsole
 from trae_agent.utils.config import AgentConfig, ModelConfig
 from trae_agent.utils.llm_clients.llm_basics import LLMMessage, LLMResponse
 from trae_agent.utils.llm_clients.llm_client import LLMClient
@@ -42,8 +41,6 @@ class BaseAgent(ABC):
         original_tool_executor = ToolExecutor(self._tools)
         self._tool_caller = original_tool_executor
 
-        self._cli_console: CLIConsole | None = None
-
         # Trajectory recorder
         self._trajectory_recorder: TrajectoryRecorder | None = None
 
@@ -64,15 +61,6 @@ class BaseAgent(ABC):
         self._trajectory_recorder = recorder
         # Also set it on the LLM client
         self._llm_client.set_trajectory_recorder(recorder)
-
-    @property
-    def cli_console(self) -> CLIConsole | None:
-        """Get the CLI console for this agent."""
-        return self._cli_console
-
-    def set_cli_console(self, cli_console: CLIConsole | None) -> None:
-        """Set the CLI console for this agent."""
-        self._cli_console = cli_console
 
     @property
     def tools(self) -> list[Tool]:
@@ -160,7 +148,6 @@ class BaseAgent(ABC):
         with contextlib.suppress(Exception):
             await self.cleanup_mcp_clients()
 
-        self._update_cli_console(step, execution)
         return execution
 
     async def _close_tools(self):
@@ -175,13 +162,9 @@ class BaseAgent(ABC):
     ) -> list["LLMMessage"]:
         # Display thinking state
         step.state = AgentStepState.THINKING
-        self._update_cli_console(step, execution)
         # Get LLM response
         llm_response = self._llm_client.chat(messages, self._model_config, self._tools)
         step.llm_response = llm_response
-
-        # Display step with LLM response
-        self._update_cli_console(step, execution)
 
         # Update token usage
         self._update_llm_usage(llm_response, execution)
@@ -204,7 +187,6 @@ class BaseAgent(ABC):
     ) -> None:
         step.state = AgentStepState.COMPLETED
         self._record_handler(step, messages)
-        self._update_cli_console(step, execution)
         execution.steps.append(step)
 
     def reflect_on_result(self, tool_results: list[ToolResult]) -> str | None:
@@ -246,12 +228,6 @@ class BaseAgent(ABC):
         """Clean up MCP clients. Override in subclasses that use MCP."""
         pass
 
-    def _update_cli_console(
-        self, step: AgentStep | None = None, agent_execution: AgentExecution | None = None
-    ) -> None:
-        if self.cli_console:
-            self.cli_console.update_status(step, agent_execution)
-
     def _update_llm_usage(self, llm_response: LLMResponse, execution: AgentExecution):
         if not llm_response.usage:
             return
@@ -290,14 +266,12 @@ class BaseAgent(ABC):
 
         step.state = AgentStepState.CALLING_TOOL
         step.tool_calls = tool_calls
-        self._update_cli_console(step)
 
         if self._model_config.parallel_tool_calls:
             tool_results = await self._tool_caller.parallel_tool_call(tool_calls)
         else:
             tool_results = await self._tool_caller.sequential_tool_call(tool_calls)
         step.tool_results = tool_results
-        self._update_cli_console(step)
         for tool_result in tool_results:
             # Add tool result to conversation
             message = LLMMessage(role="user", tool_result=tool_result)
@@ -307,9 +281,6 @@ class BaseAgent(ABC):
         if reflection:
             step.state = AgentStepState.REFLECTING
             step.reflection = reflection
-
-            # Display reflection
-            self._update_cli_console(step)
 
             messages.append(LLMMessage(role="assistant", content=reflection))
 
