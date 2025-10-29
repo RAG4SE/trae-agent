@@ -107,6 +107,7 @@ class TraeAgentConfig(AgentConfig):
     """
 
     enable_lakeview: bool = True
+    json_formatter_model: ModelConfig | None = None
     tools: list[str] = field(
         default_factory=lambda: [
             "bash",
@@ -219,6 +220,21 @@ class Config:
                             allow_mcp_servers=allow_mcp_servers,
                         )
                         trae_agent_config.model = agent_model
+
+                        # Set json_formatter_model if specified
+                        json_formatter_model_name = agent_config.get("json_formatter_model")
+                        if json_formatter_model_name is not None:
+                            if isinstance(json_formatter_model_name, str):
+                                # If it's a string, look up the model in config.models
+                                if json_formatter_model_name not in config_models:
+                                    raise ConfigError(f"json_formatter_model '{json_formatter_model_name}' not found in models")
+                                trae_agent_config.json_formatter_model = config_models[json_formatter_model_name]
+                            elif isinstance(json_formatter_model_name, dict):
+                                # If it's a dict, create ModelConfig directly
+                                trae_agent_config.json_formatter_model = ModelConfig(**json_formatter_model_name)
+                            else:
+                                raise ConfigError("json_formatter_model must be either a string (model name) or a dict (model config)")
+
                         if trae_agent_config.enable_lakeview and config.lakeview is None:
                             raise ConfigError("Lakeview is enabled but no lakeview config provided")
                         config.trae_agent = trae_agent_config

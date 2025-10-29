@@ -2,6 +2,7 @@ agents:
     trae_agent:
         enable_lakeview: true
         model: trae_agent_model
+        json_formatter_model: json_formatter_model
         max_steps: 200
         tools:
             - bash

@@ -10,7 +10,7 @@ from pathlib import Path
 from json_repair import repair_json
 
 from trae_agent.tools.base import Tool, ToolCallArguments, ToolExecResult, ToolParameter
-from trae_agent.utils.config import Config, ConfigError, ModelConfig
+from trae_agent.utils.config import ModelConfig
 from trae_agent.utils.llm_clients.llm_basics import LLMMessage
 from trae_agent.utils.llm_clients.llm_client import LLMClient
 
@@ -18,11 +18,10 @@ from trae_agent.utils.llm_clients.llm_client import LLMClient
 class JSONFormatterTool(Tool):
     """Tool for formatting answers in JSON format using a dedicated formatter LLM."""
 
-    def __init__(self, model_provider: str, config: Config | None = None):
+    def __init__(self, model_provider: str, json_formatter_model: ModelConfig):
         """Initialize the JSON formatter tool."""
         super().__init__(model_provider)
-        self._config: Config | None = config
-        self._formatter_model_config: ModelConfig | None = None
+        self._json_formatter_model = json_formatter_model
         self._formatter_llm_client: LLMClient | None = None
 
     def get_name(self) -> str:
@@ -225,8 +224,7 @@ Please return valid JSON only, with no additional text or formatting."""
     def _call_formatter_llm(self, messages: list[LLMMessage]):
         """Call the formatter LLM and return the response."""
         client = self._ensure_formatter_llm_client()
-        model_config = self._get_formatter_model_config()
-        response = client.chat(messages, model_config, tools=None, reuse_history=False)
+        response = client.chat(messages, self._json_formatter_model, tools=None, reuse_history=False)
         if not response.content or not response.content.strip():
             raise ValueError("Formatter LLM returned empty content.")
         return response
@@ -274,57 +272,7 @@ Please return valid JSON only, with no additional text or formatting."""
     def _ensure_formatter_llm_client(self) -> LLMClient:
         """Create the formatter LLM client on demand."""
         if self._formatter_llm_client is None:
-            model_config = self._get_formatter_model_config()
-            self._formatter_llm_client = LLMClient(model_config)
+            self._formatter_llm_client = LLMClient(self._json_formatter_model)
         return self._formatter_llm_client
 
-    def _get_formatter_model_config(self) -> ModelConfig:
-        """Load the formatter model configuration."""
-        if self._formatter_model_config is None:
-            # Use provided config or create from file
-            if self._config is not None:
-                config = self._config
-            else:
-                config_path = self._resolve_config_path()
-                try:
-                    config = Config.create(config_file=str(config_path))
-                except (FileNotFoundError, ConfigError) as exc:
-                    raise ValueError(
-                        f"Unable to load configuration for json_formatter_model: {exc}"
-                    ) from exc
-
-            models = config.models or {}
-            formatter_config = models.get("json_formatter_model")
-            if formatter_config is None:
-                raise ValueError(
-                    "json_formatter_model not found in configuration. "
-                    "Please define it in your Trae Agent config file."
-                )
-
-            self._formatter_model_config = formatter_config
-
-        return self._formatter_model_config
-
-    def _resolve_config_path(self) -> Path:
-        """Resolve the configuration file path for the formatter model."""
-        candidate_env_vars = ["TRAE_CONFIG_PATH", "TRAE_CONFIG_FILE", "TRAE_CONFIG"]
-        for env_var in candidate_env_vars:
-            value = os.getenv(env_var)
-            if value:
-                path = Path(value).expanduser()
-                if path.is_file():
-                    return path
-
-        # Try common defaults: current working directory and repository root
-        cwd_candidate = Path.cwd() / "trae_config.yaml"
-        if cwd_candidate.is_file():
-            return cwd_candidate
-
-        repo_candidate = Path(__file__).resolve().parents[2] / "trae_config.yaml"
-        if repo_candidate.is_file():
-            return repo_candidate
-
-        raise FileNotFoundError(
-            "Could not locate Trae Agent configuration file (trae_config.yaml). "
-            "Set TRAE_CONFIG_PATH or place the file in the working directory."
-        )
+    

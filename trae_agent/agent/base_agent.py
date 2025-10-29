@@ -11,8 +11,9 @@ from typing import Union
 from trae_agent.agent.agent_basics import AgentExecution, AgentState, AgentStep, AgentStepState
 from trae_agent.tools import tools_registry
 from trae_agent.tools.base import Tool, ToolCall, ToolExecutor, ToolResult
+from trae_agent.tools.json_formatter_tool import JSONFormatterTool
 from trae_agent.tools.ckg.ckg_database import clear_older_ckg
-from trae_agent.utils.config import AgentConfig, Config, ModelConfig
+from trae_agent.utils.config import AgentConfig, Config, ModelConfig, TraeAgentConfig
 from trae_agent.utils.llm_clients.llm_basics import LLMMessage, LLMResponse
 from trae_agent.utils.llm_clients.llm_client import LLMClient
 from trae_agent.utils.trajectory_recorder import TrajectoryRecorder
@@ -35,27 +36,23 @@ class BaseAgent(ABC):
         self._initial_messages: list[LLMMessage] = []
         self._task: str = ""
 
-        # Create tools with config support
+        # Get json_formatter_model if available
+        json_formatter_model = None
+        if isinstance(agent_config, TraeAgentConfig):
+            json_formatter_model = agent_config.json_formatter_model
+
         self._tools: list[Tool] = []
         for tool_name in agent_config.tools:
             tool_class = tools_registry[tool_name]
-            # Try to create tool with config if supported
-            try:
-                # Check if tool supports config parameter
-                import inspect
-                sig = inspect.signature(tool_class.__init__)
-                if 'config' in sig.parameters:
-                    tool = tool_class(
-                        model_provider=self._model_config.model_provider,
-                        config=getattr(self, '_full_config', None)  # Pass full config if available
-                    )
-                else:
-                    # Fallback to old signature
-                    tool = tool_class(model_provider=self._model_config.model_provider)
-            except Exception:
-                # Fallback to old signature
-                tool = tool_class(model_provider=self._model_config.model_provider)
-            self._tools.append(tool)
+            if tool_class == JSONFormatterTool:
+                if json_formatter_model is None:
+                    raise ValueError("json_formatter_model is required when using json_formatter tool")
+                self._tools.append(JSONFormatterTool(
+                    model_provider=self._model_config.model_provider,
+                    json_formatter_model=json_formatter_model
+                ))
+            else:
+                self._tools.append(tool_class(model_provider=self._model_config.model_provider))
 
         original_tool_executor = ToolExecutor(self._tools)
         self._tool_caller = original_tool_executor
@@ -65,10 +62,6 @@ class BaseAgent(ABC):
 
         # CKG tool-specific: clear the older CKG databases
         clear_older_ckg()
-
-    def set_full_config(self, full_config: Config):
-        """Set the full configuration object."""
-        self._full_config = full_config
 
     @property
     def llm_client(self) -> LLMClient:

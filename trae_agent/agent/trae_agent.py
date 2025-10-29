@@ -13,7 +13,8 @@ from trae_agent.agent.base_agent import BaseAgent
 from trae_agent.prompt.agent_prompt import TRAE_AGENT_SYSTEM_PROMPT
 from trae_agent.tools import tools_registry
 from trae_agent.tools.base import Tool, ToolResult
-from trae_agent.utils.config import MCPServerConfig, TraeAgentConfig
+from trae_agent.tools.json_formatter_tool import JSONFormatterTool
+from trae_agent.utils.config import MCPServerConfig, TraeAgentConfig, ModelConfig
 from trae_agent.utils.llm_clients.llm_basics import LLMMessage, LLMResponse
 from trae_agent.utils.mcp_client import MCPClient
 
@@ -44,6 +45,7 @@ class TraeAgent(BaseAgent):
                        If provided, it will be used instead of creating a new one from config.
         """
         self.allow_edit: bool = allow_edit
+        self.trae_agent_config: TraeAgentConfig = trae_agent_config
         self.project_path: str = ""
         self.base_commit: str | None = None
         self.must_patch: str = "false"
@@ -119,10 +121,20 @@ class TraeAgent(BaseAgent):
 
             # Get the model provider from the LLM client
             provider = self._model_config.model_provider
-            self._tools: list[Tool] = [
-                tools_registry[tool_name](model_provider=provider) for tool_name in tool_names
-            ]
-        # self._tool_caller: ToolExecutor = ToolExecutor(self._tools)
+            json_formatter_model = self.trae_agent_config.json_formatter_model
+
+            self._tools: list[Tool] = []
+            for tool_name in tool_names:
+                tool_class = tools_registry[tool_name]
+                if tool_class == JSONFormatterTool:
+                    if json_formatter_model is None:
+                        raise ValueError("json_formatter_model is required when using json_formatter tool")
+                    self._tools.append(JSONFormatterTool(
+                        model_provider=provider,
+                        json_formatter_model=json_formatter_model
+                    ))
+                else:
+                    self._tools.append(tool_class(model_provider=provider))
 
         self._initial_messages: list[LLMMessage] = []
         self._initial_messages.append(LLMMessage(role="system", content=self.get_system_prompt()))

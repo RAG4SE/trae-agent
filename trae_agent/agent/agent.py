@@ -53,8 +53,6 @@ class Agent:
         if self.agent is None:
             raise ValueError("Agent initialization failed - agent is None")
 
-        # Set full config to agent for tools that need it
-        self.agent.set_full_config(config)
         self.agent.set_trajectory_recorder(self.trajectory_recorder)
 
     async def run(

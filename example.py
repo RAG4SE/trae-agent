@@ -4,7 +4,7 @@ from trae_agent.utils.config import Config
 
 async def run_trae_agent():
     # 1. 加载配置
-    config = Config.create(config_file="./trae_config.yaml")
+    config = Config.create(config_file="./trae_configasdasd.yaml")
 
     # 2. 创建Agent（不使用CLI界面，不允许编辑）
     # 使用轨迹录制功能记录中间过程
@@ -17,11 +17,9 @@ async def run_trae_agent():
     )
 
     # 3. 运行任务
-    task = """main.py has a `print(a)` statement, `a` is declared or defined in test1/guguga.py, test2/guguga.py, test3/guguga.py, help decide which `a` is used in `print(a)`, return json format {file_path: <file_path>, a_decl_or_a_def: <stmt>}. When you have found and returned them, call task_done to complete.
+    task = """List the full content of main.py. Return as JSON {"content": <the full content>}. When the main.py is read and the content is extracted, call task_done. 
     """
-    
-    task = """main.py has a `print(a)` statement, `a` is declared or defined in test1/guguga.py, test2/guguga.py, test3/guguga.py, help decide which `a` is used in `print(a)`. You are not allowed to use tools to execute any file. When you have found and returned them, call task_done to complete.
-    """
+
     
     extra_args = {
         "project_path": "/Users/mac/repo/deepwiki-cli/bench/test_var_from_other_file_python",
