@@ -118,7 +118,7 @@ class TraeAgent(BaseAgent):
             tool_names = TraeAgentToolNames
 
             # Get the model provider from the LLM client
-            provider = self._model_config.model_provider.provider
+            provider = self._model_config.model_provider
             self._tools: list[Tool] = [
                 tools_registry[tool_name](model_provider=provider) for tool_name in tool_names
             ]

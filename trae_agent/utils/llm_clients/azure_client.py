@@ -3,6 +3,7 @@
 
 """Azure client wrapper with tool integrations"""
 
+import os
 import openai
 
 from trae_agent.utils.config import ModelConfig
@@ -16,16 +17,26 @@ class AzureProvider(ProviderConfig):
     """Azure OpenAI provider configuration."""
 
     def create_client(
-        self, api_key: str, base_url: str | None, api_version: str | None
-    ) -> openai.OpenAI:
+        self, api_key: str | None = None, base_url: str | None = None, api_version: str | None = None
+    ) -> openai.AzureOpenAI:
         """Create Azure OpenAI client."""
-        if not base_url:
-            raise ValueError("base_url is required for AzureClient")
+        # Get Azure endpoint from environment variable (required)
+        azure_endpoint = base_url or os.getenv('AZURE_OPENAI_ENDPOINT')
+        if not azure_endpoint:
+            raise ValueError("AZURE_OPENAI_ENDPOINT environment variable is required for Azure OpenAI")
+
+        # Get API key from environment variable (required)
+        final_api_key = api_key or os.getenv('AZURE_OPENAI_API_KEY')
+        if not final_api_key:
+            raise ValueError("AZURE_OPENAI_API_KEY environment variable is required for Azure OpenAI")
+
+        # Get API version from environment variable or use default
+        final_api_version = api_version or os.getenv('AZURE_OPENAI_API_VERSION', '2024-02-15-preview')
 
         return openai.AzureOpenAI(
-            azure_endpoint=base_url,
-            api_version=api_version,
-            api_key=api_key,
+            azure_endpoint=azure_endpoint,
+            api_version=final_api_version,
+            api_key=final_api_key,
         )
 
     def get_service_name(self) -> str:

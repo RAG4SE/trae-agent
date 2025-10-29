@@ -3,13 +3,18 @@
 
 """LLM Client wrapper for OpenAI, Anthropic, Azure, and OpenRouter APIs."""
 
+from __future__ import annotations
+
 from enum import Enum
+from typing import TYPE_CHECKING
 
 from trae_agent.tools.base import Tool
 from trae_agent.utils.config import ModelConfig
 from trae_agent.utils.llm_clients.base_client import BaseLLMClient
 from trae_agent.utils.llm_clients.llm_basics import LLMMessage, LLMResponse
-from trae_agent.utils.trajectory_recorder import TrajectoryRecorder
+
+if TYPE_CHECKING:
+    from trae_agent.utils.trajectory_recorder import TrajectoryRecorder
 
 
 class LLMProvider(Enum):
@@ -32,7 +37,7 @@ class LLMClient:
     """Main LLM client that supports multiple providers."""
 
     def __init__(self, model_config: ModelConfig):
-        self.provider: LLMProvider = LLMProvider(model_config.model_provider.provider)
+        self.provider: LLMProvider = LLMProvider(model_config.model_provider)
         self.model_config: ModelConfig = model_config
 
         match self.provider:
@@ -80,7 +85,7 @@ class LLMClient:
                 from .deepseek_client import DeepSeekClient
 
                 self.client = DeepSeekClient(model_config)
-    def set_trajectory_recorder(self, recorder: TrajectoryRecorder | None) -> None:
+    def set_trajectory_recorder(self, recorder: "TrajectoryRecorder" | None) -> None:
         """Set the trajectory recorder for the underlying client."""
         self.client.set_trajectory_recorder(recorder)
 

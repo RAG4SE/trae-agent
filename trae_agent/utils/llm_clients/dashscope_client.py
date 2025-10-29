@@ -4,6 +4,7 @@
 """DashScope client wrapper with tool integrations"""
 
 import openai
+import os
 
 from trae_agent.utils.config import ModelConfig
 from trae_agent.utils.llm_clients.openai_compatible_base import (
@@ -16,13 +17,13 @@ class DashScopeProvider(ProviderConfig):
     """DashScope provider configuration."""
 
     def create_client(
-        self, api_key: str, base_url: str | None, api_version: str | None = None
+        self, api_key: str | None = None, base_url: str | None = None, api_version: str | None = None
     ) -> openai.OpenAI:
         """Create OpenAI client with DashScope base URL."""
         # DashScope typically uses a specific base URL
         default_base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
         final_base_url = base_url or default_base_url
-        return openai.OpenAI(base_url=final_base_url, api_key=api_key)
+        return openai.OpenAI(base_url=final_base_url, api_key=api_key or os.getenv('DASHSCOPE_API_KEY'))
 
     def get_service_name(self) -> str:
         """Get the service name for retry logging."""

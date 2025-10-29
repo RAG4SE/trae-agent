@@ -4,6 +4,7 @@
 """Anthropic API client wrapper with tool integration."""
 
 import json
+import os
 
 import anthropic
 from anthropic.types.tool_union_param import TextEditor20250429
@@ -21,9 +22,12 @@ class AnthropicClient(BaseLLMClient):
     def __init__(self, model_config: ModelConfig):
         super().__init__(model_config)
 
-        self.client: anthropic.Anthropic = anthropic.Anthropic(
-            api_key=self.api_key, base_url=self.base_url
-        )
+        # Get API key from environment variable
+        api_key = os.getenv('ANTHROPIC_API_KEY')
+        if not api_key:
+            raise ValueError("ANTHROPIC_API_KEY environment variable is required")
+
+        self.client: anthropic.Anthropic = anthropic.Anthropic(api_key=api_key)
         self.message_history: list[anthropic.types.MessageParam] = []
         self.system_message: str | anthropic.NotGiven = anthropic.NOT_GIVEN
 

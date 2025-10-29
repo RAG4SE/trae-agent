@@ -19,6 +19,10 @@ async def run_trae_agent():
     # 3. 运行任务
     task = """main.py has a `print(a)` statement, `a` is declared or defined in test1/guguga.py, test2/guguga.py, test3/guguga.py, help decide which `a` is used in `print(a)`, return json format {file_path: <file_path>, a_decl_or_a_def: <stmt>}. When you have found and returned them, call task_done to complete.
     """
+    
+    task = """main.py has a `print(a)` statement, `a` is declared or defined in test1/guguga.py, test2/guguga.py, test3/guguga.py, help decide which `a` is used in `print(a)`. You are not allowed to use tools to execute any file. When you have found and returned them, call task_done to complete.
+    """
+    
     extra_args = {
         "project_path": "/Users/mac/repo/deepwiki-cli/bench/test_var_from_other_file_python",
         "issue": task,

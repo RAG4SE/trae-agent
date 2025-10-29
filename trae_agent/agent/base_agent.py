@@ -35,7 +35,7 @@ class BaseAgent(ABC):
         self._initial_messages: list[LLMMessage] = []
         self._task: str = ""
         self._tools: list[Tool] = [
-            tools_registry[tool_name](model_provider=self._model_config.model_provider.provider)
+            tools_registry[tool_name](model_provider=self._model_config.model_provider)
             for tool_name in agent_config.tools
         ]
         original_tool_executor = ToolExecutor(self._tools)

@@ -4,6 +4,7 @@
 """Google Gemini API client wrapper with tool integration."""
 
 import json
+import os
 import traceback
 import uuid
 
@@ -23,7 +24,12 @@ class GoogleClient(BaseLLMClient):
     def __init__(self, model_config: ModelConfig):
         super().__init__(model_config)
 
-        self.client = genai.Client(api_key=self.api_key)
+        # Get API key from environment variable
+        api_key = os.getenv('GOOGLE_API_KEY') or os.getenv('GEMINI_API_KEY')
+        if not api_key:
+            raise ValueError("GOOGLE_API_KEY and GEMINI_API_KEY environment variable is required")
+
+        self.client = genai.Client(api_key=api_key)
         self.message_history: list[types.Content] = []
         self.system_instruction: str | None = None
 

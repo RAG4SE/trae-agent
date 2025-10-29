@@ -67,7 +67,7 @@ class OpenAICompatibleClient(BaseLLMClient):
     def __init__(self, model_config: ModelConfig, provider_config: ProviderConfig):
         super().__init__(model_config)
         self.provider_config = provider_config
-        self.client = provider_config.create_client(self.api_key, self.base_url, self.api_version)
+        self.client = provider_config.create_client()
         self.message_history: list[ChatCompletionMessageParam] = []
 
     def set_chat_history(self, messages: list[LLMMessage]) -> None:

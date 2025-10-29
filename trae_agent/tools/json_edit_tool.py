@@ -6,6 +6,7 @@
 import json
 from pathlib import Path
 
+from json_repair import repair_json
 from jsonpath_ng import Fields, Index
 from jsonpath_ng import parse as jsonpath_parse
 from jsonpath_ng.exceptions import JSONPathError
@@ -31,6 +32,7 @@ class JSONEditTool(Tool):
 * Operations: view, set, add, remove
 * JSONPath examples: '$.users[0].name', '$.config.database.host', '$.items[*].price'
 * Safe JSON parsing and validation with detailed error messages
+* Automatically repairs ill-formatted JSON when possible using json-repair
 * Preserves JSON formatting where possible
 
 Operation details:
@@ -158,9 +160,21 @@ JSONPath syntax supported:
                 content = f.read().strip()
                 if not content:
                     raise ToolError(f"File is empty: {file_path}")
-                return json.loads(content)
-        except json.JSONDecodeError as e:
-            raise ToolError(f"Invalid JSON in file {file_path}: {str(e)}") from e
+
+                # First try to parse with standard json.loads
+                try:
+                    return json.loads(content)
+                except json.JSONDecodeError as initial_error:
+                    # If that fails, try to repair the JSON
+                    try:
+                        repaired_content = repair_json(content)
+                        return json.loads(repaired_content)
+                    except Exception as repair_error:
+                        raise ToolError(
+                            f"Invalid JSON in file {file_path} and repair failed. "
+                            f"Original error: {str(initial_error)}. Repair error: {str(repair_error)}"
+                        ) from initial_error
+
         except Exception as e:
             raise ToolError(f"Error reading file {file_path}: {str(e)}") from e
 

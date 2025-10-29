@@ -6,6 +6,7 @@ Ollama API client wrapper with tool integration
 """
 
 import json
+import os
 import uuid
 
 import openai
@@ -28,12 +29,13 @@ class OllamaClient(BaseLLMClient):
     def __init__(self, model_config: ModelConfig):
         super().__init__(model_config)
 
+        # Ollama doesn't require an API key, but we set a placeholder
+        # Allow optional override for the base URL
+        base_url = os.getenv('OLLAMA_BASE_URL', 'http://localhost:11434/v1')
+
         self.client: openai.OpenAI = openai.OpenAI(
-            # by default ollama doesn't require any api key. It should set to be "ollama".
-            api_key=self.api_key,
-            base_url=model_config.model_provider.base_url
-            if model_config.model_provider.base_url
-            else "http://localhost:11434/v1",
+            api_key="ollama",  # Ollama doesn't require a real API key
+            base_url=base_url,
         )
 
         self.message_history: ResponseInputParam = []

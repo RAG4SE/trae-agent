@@ -1,20 +1,28 @@
 # Copyright (c) 2025 ByteDance Ltd. and/or its affiliates
 # SPDX-License-Identifier: MIT
 
-"""JSON formatter tool for formatting final answers in JSON format."""
+"""JSON formatter tool for formatting final answers in JSON format using LLM."""
 
 import json
-import re
+import os
+from pathlib import Path
 
-from trae_agent.tools.base import Tool, ToolCall, ToolCallArguments, ToolExecResult, ToolParameter
+from json_repair import repair_json
+
+from trae_agent.tools.base import Tool, ToolCallArguments, ToolExecResult, ToolParameter
+from trae_agent.utils.config import Config, ConfigError, ModelConfig
+from trae_agent.utils.llm_clients.llm_basics import LLMMessage
+from trae_agent.utils.llm_clients.llm_client import LLMClient
 
 
 class JSONFormatterTool(Tool):
-    """Tool for formatting answers in JSON format when required."""
+    """Tool for formatting answers in JSON format using a dedicated formatter LLM."""
 
     def __init__(self, model_provider: str):
         """Initialize the JSON formatter tool."""
         super().__init__(model_provider)
+        self._formatter_model_config: ModelConfig | None = None
+        self._formatter_llm_client: LLMClient | None = None
 
     def get_name(self) -> str:
         """Get the tool name."""
@@ -23,9 +31,11 @@ class JSONFormatterTool(Tool):
     def get_description(self) -> str:
         """Get the tool description."""
         return (
-            "Format the final answer in JSON format when the user requests JSON output. "
-            "Use this tool when you have completed your analysis and the user has requested "
-            "a JSON format response. This tool will extract and format your answer as valid JSON."
+            "Format the final answer in strict JSON by delegating to a specialist formatter model. "
+            "The tool automatically extracts JSON format requirements from the original task description "
+            "(from trajectory file) and uses the `json_formatter_model` from configuration to format "
+            "the answer accordingly. The LLM will parse format patterns like 'return json format {key: value}' "
+            "and format the answer to match. Provides automatic JSON repair for minor formatting issues."
         )
 
     def get_parameters(self) -> list[ToolParameter]:
@@ -37,128 +47,273 @@ class JSONFormatterTool(Tool):
                 description="The answer text to be formatted as JSON",
                 required=True,
             ),
-            ToolParameter(
-                name="json_template",
-                type="string",
-                description="Optional JSON template showing the expected format",
-                required=False,
-            ),
         ]
 
     async def execute(self, arguments: ToolCallArguments) -> ToolExecResult:
         """Format the answer in JSON format."""
         try:
-            answer = arguments.get("answer", "")
-            json_template = arguments.get("json_template", "")
+            answer = str(arguments.get("answer", "") or "")
 
-            if not answer:
+            if not answer.strip():
                 return ToolExecResult(
                     error="Error: No answer provided to format",
                     error_code=1,
                 )
 
-            # Try to extract JSON from the answer
-            json_result = self._extract_and_format_json(answer, json_template)
-
+            # Use LLM to extract JSON format from task and format the answer
+            json_result = await self._extract_and_format_with_llm(answer)
+            return ToolExecResult(output=json_result)
+        except Exception as exc:
             return ToolExecResult(
-                output=json_result,
-            )
-        except Exception as e:
-            return ToolExecResult(
-                error=f"Error formatting JSON: {str(e)}",
+                error=f"Error formatting JSON: {exc}",
                 error_code=1,
             )
 
-    def _extract_and_format_json(self, answer: str, json_template: str = "") -> str:
-        """Extract and format JSON from the answer."""
-        # First, try to find JSON in the answer
-        json_patterns = [
-            r'\{[^{}]*\}',  # Simple JSON objects
-            r'\{(?:[^{}]|(?R))*\}',  # Nested JSON objects (recursive)
+    async def _extract_and_format_with_llm(self, answer: str) -> str:
+        """Use LLM to extract JSON format from task and format the answer in two steps."""
+
+        # Step 1: Get the task description from trajectory file
+        task_description = self._get_task_description_from_trajectory()
+
+        # Step 2: Extract JSON format requirement from task
+        json_format = await self._extract_json_format_from_task(task_description)
+
+        # Step 3: Format the answer according to the extracted JSON format
+        messages = self._build_format_answer_prompt(json_format, answer)
+        response = self._call_formatter_llm(messages)
+        return self._normalize_and_validate_json(response.content)
+
+    async def _extract_json_format_from_task(self, task_description: str) -> str:
+        """Extract JSON format requirement from task description using LLM."""
+
+        if not task_description.strip():
+            # If no task description, return empty format
+            return ""
+
+        messages = [
+            LLMMessage(
+                role="system",
+                content="Extract the JSON format requirement from the task description. "
+                "Look for patterns like 'return json format {key: value}' or similar format specifications. "
+                "Extract only the JSON structure (the part inside braces), nothing else. "
+                "If no JSON format is found, return an empty string."
+            ),
+            LLMMessage(
+                role="user",
+                content=f"Extract JSON format from this task:\n\n{task_description}\n\n"
+                "Return only the JSON format structure, no explanations."
+            )
         ]
 
-        for pattern in json_patterns:
-            matches = re.findall(pattern, answer, re.DOTALL)
-            for match in matches:
+        response = self._call_formatter_llm(messages)
+        extracted_format = response.content.strip()
+
+        if not extracted_format:
+            return ""
+
+        # Validate and repair the extracted JSON format
+        try:
+            # Try to parse as JSON
+            parsed = json.loads(extracted_format)
+            return json.dumps(parsed, ensure_ascii=False)
+        except json.JSONDecodeError:
+            try:
+                # Try to repair the JSON
+                repaired = repair_json(extracted_format)
+                parsed = json.loads(repaired)
+                return json.dumps(parsed, ensure_ascii=False)
+            except Exception:
+                # If repair fails, return empty string
+                return ""
+
+    def _build_format_answer_prompt(self, json_format: str, answer: str) -> list[LLMMessage]:
+        """Build prompt to format answer according to the extracted JSON format."""
+
+        if not json_format:
+            # No specific format found, create a simple structure
+            json_format = '{"result": "answer"}'
+
+        system_prompt = """You are a JSON formatting specialist. Format the given answer according to the provided JSON structure.
+
+Instructions:
+- Use the exact same keys and structure as provided in the JSON format
+- Extract relevant information from the answer to fill the JSON fields
+- Set fields to null if the information is not available in the answer
+- Return ONLY valid JSON, no explanations or formatting"""
+
+        user_prompt = f"""Please format the answer according to this JSON structure:
+
+<json_format>
+{json_format}
+</json_format>
+
+<answer_to_format>
+{answer}
+</answer_to_format>
+
+Please return valid JSON only, with no additional text or formatting."""
+
+        return [
+            LLMMessage(role="system", content=system_prompt),
+            LLMMessage(role="user", content=user_prompt),
+        ]
+
+    def _get_task_description_from_trajectory(self) -> str:
+        """Get the task description from trajectory file."""
+        # Try to find trajectory file in common locations
+        trajectory_paths = [
+            Path.cwd() / "trajectory.json",
+            Path(__file__).resolve().parents[2] / "trajectory.json",
+        ]
+
+        # Also check environment variable
+        trajectory_env = os.getenv("TRAJECTORY_FILE")
+        if trajectory_env:
+            trajectory_paths.insert(0, Path(trajectory_env))
+
+        for trajectory_path in trajectory_paths:
+            if trajectory_path.exists():
                 try:
-                    # Validate that it's valid JSON
-                    parsed = json.loads(match)
-                    # Return formatted JSON
-                    return json.dumps(parsed, ensure_ascii=False, indent=2)
-                except json.JSONDecodeError:
+                    with open(trajectory_path, 'r', encoding='utf-8') as f:
+                        trajectory_data = json.load(f)
+                    return trajectory_data.get("task", "")
+                except (json.JSONDecodeError, FileNotFoundError, KeyError):
                     continue
 
-        # If no JSON found, try to convert based on template
-        if json_template:
-            return self._convert_to_json_template(answer, json_template)
+        # If no trajectory file found, return empty string
+        return ""
 
-        # If no template and no JSON found, create a simple JSON response
-        return self._create_simple_json_response(answer)
+    def _build_format_extraction_prompt(self, task_description: str, answer: str) -> list[LLMMessage]:
+        """Build prompt for LLM to extract JSON format and format the answer."""
 
-    def _convert_to_json_template(self, answer: str, template: str) -> str:
-        """Convert answer to match the JSON template format."""
+        system_prompt = """You are a JSON formatting specialist. Your task is to:
+1. Extract the JSON format requirement from the task description
+2. Format the given answer according to that format requirement
+
+Instructions:
+- Carefully read the task description to understand the required JSON structure
+- Extract the answer content and organize it according to the detected format
+- If you cannot find a specific JSON format requirement, create a reasonable JSON structure
+- Set missing or unknown values to null
+- Return ONLY valid JSON, no explanations or formatting"""
+
+        user_prompt = f"""Please format the answer as JSON according to the requirements in the task description.
+
+<task_description>
+{task_description}
+</task_description>
+
+<answer_to_format>
+{answer}
+</answer_to_format>
+
+Please return valid JSON only, with no additional text or formatting."""
+
+        return [
+            LLMMessage(role="system", content=system_prompt),
+            LLMMessage(role="user", content=user_prompt),
+        ]
+
+    
+    def _call_formatter_llm(self, messages: list[LLMMessage]):
+        """Call the formatter LLM and return the response."""
+        client = self._ensure_formatter_llm_client()
+        model_config = self._get_formatter_model_config()
+        response = client.chat(messages, model_config, tools=None, reuse_history=False)
+        if not response.content or not response.content.strip():
+            raise ValueError("Formatter LLM returned empty content.")
+        return response
+
+    def _normalize_and_validate_json(self, raw_content: str) -> str:
+        """Ensure the formatter response is valid JSON, repairing if necessary."""
+        cleaned = self._strip_code_fences(raw_content.strip())
+        if not cleaned:
+            raise ValueError("Formatter LLM returned empty JSON content.")
+
         try:
-            # Parse the template to understand the expected structure
-            template_obj = json.loads(template)
-
-            # Simple heuristic: try to extract key-value pairs from the answer
-            result = {}
-
-            # Look for patterns like "key: value" or "key = value"
-            patterns = [
-                r'(\w+)\s*[:=]\s*["\']?([^"\'\n]+)["\']?',
-                r'(\w+(?:\s+\w+)*)\s*[:=]\s*["\']?([^"\'\n]+)["\']?',
-            ]
-
-            for pattern in patterns:
-                matches = re.findall(pattern, answer)
-                for key, value in matches:
-                    # Clean up the key and value
-                    clean_key = key.strip().lower().replace(' ', '_')
-                    clean_value = value.strip()
-
-                    # Try to determine the type of value
-                    if clean_value.isdigit():
-                        clean_value = int(clean_value)
-                    elif clean_value.lower() in ['true', 'false']:
-                        clean_value = clean_value.lower() == 'true'
-
-                    # Only add if the key seems relevant to the template
-                    if any(clean_key in str(k).lower() for k in template_obj.keys()):
-                        result[clean_key] = clean_value
-
-            # If we couldn't extract structured data, put the whole answer in a generic field
-            if not result:
-                if 'answer' in template_obj:
-                    result['answer'] = answer
-                elif 'result' in template_obj:
-                    result['result'] = answer
-                else:
-                    # Use the first key from template
-                    first_key = list(template_obj.keys())[0]
-                    result[first_key] = answer
-
-            return json.dumps(result, ensure_ascii=False, indent=2)
-
+            parsed = json.loads(cleaned)
         except json.JSONDecodeError:
-            # If template is not valid JSON, create simple response
-            return self._create_simple_json_response(answer)
+            try:
+                repaired = repair_json(cleaned)
+            except Exception as repair_error:  # pragma: no cover - defensive guard
+                raise ValueError("Unable to repair formatter JSON output.") from repair_error
+            try:
+                parsed = json.loads(repaired)
+            except json.JSONDecodeError as parse_error:
+                raise ValueError("Formatter JSON output is invalid even after repair.") from parse_error
 
-    def _create_simple_json_response(self, answer: str) -> str:
-        """Create a simple JSON response when no template is provided."""
-        # Try to create a meaningful JSON object from the answer
-        result = {"answer": answer}
+        return json.dumps(parsed, ensure_ascii=False, indent=2)
 
-        # Try to detect if this might be a file analysis result
-        if 'file_path:' in answer.lower() or 'file:' in answer.lower():
-            # Try to extract file path and declaration/definition
-            file_match = re.search(r'file[:\s]+([^\s\n]+)', answer, re.IGNORECASE)
-            decl_match = re.search(r'(?:declaration|definition|def)[:]?\s*([^\n]+)', answer, re.IGNORECASE)
+    def _strip_code_fences(self, text: str) -> str:
+        """Remove markdown code fences if present."""
+        trimmed = text.strip()
+        if not trimmed.startswith("```"):
+            return trimmed
 
-            if file_match and decl_match:
-                result = {
-                    "file_path": file_match.group(1).strip(),
-                    "a_decl_or_a_def": decl_match.group(1).strip()
-                }
+        lines = trimmed.splitlines()
+        if not lines:
+            return trimmed
 
-        return json.dumps(result, ensure_ascii=False, indent=2)
+        # Drop the opening fence (with optional language identifier)
+        if lines[0].startswith("```"):
+            lines = lines[1:]
+
+        # Drop the closing fence if present
+        while lines and lines[-1].strip().startswith("```"):
+            lines = lines[:-1]
+
+        return "\n".join(lines).strip()
+
+    def _ensure_formatter_llm_client(self) -> LLMClient:
+        """Create the formatter LLM client on demand."""
+        if self._formatter_llm_client is None:
+            model_config = self._get_formatter_model_config()
+            self._formatter_llm_client = LLMClient(model_config)
+        return self._formatter_llm_client
+
+    def _get_formatter_model_config(self) -> ModelConfig:
+        """Load the formatter model configuration."""
+        if self._formatter_model_config is None:
+            config_path = self._resolve_config_path()
+            try:
+                config = Config.create(config_file=str(config_path))
+            except (FileNotFoundError, ConfigError) as exc:
+                raise ValueError(
+                    f"Unable to load configuration for json_formatter_model: {exc}"
+                ) from exc
+
+            models = config.models or {}
+            formatter_config = models.get("json_formatter_model")
+            if formatter_config is None:
+                raise ValueError(
+                    "json_formatter_model not found in configuration. "
+                    "Please define it in your Trae Agent config file."
+                )
+
+            self._formatter_model_config = formatter_config
+
+        return self._formatter_model_config
+
+    def _resolve_config_path(self) -> Path:
+        """Resolve the configuration file path for the formatter model."""
+        candidate_env_vars = ["TRAE_CONFIG_PATH", "TRAE_CONFIG_FILE", "TRAE_CONFIG"]
+        for env_var in candidate_env_vars:
+            value = os.getenv(env_var)
+            if value:
+                path = Path(value).expanduser()
+                if path.is_file():
+                    return path
+
+        # Try common defaults: current working directory and repository root
+        cwd_candidate = Path.cwd() / "trae_config.yaml"
+        if cwd_candidate.is_file():
+            return cwd_candidate
+
+        repo_candidate = Path(__file__).resolve().parents[2] / "trae_config.yaml"
+        if repo_candidate.is_file():
+            return repo_candidate
+
+        raise FileNotFoundError(
+            "Could not locate Trae Agent configuration file (trae_config.yaml). "
+            "Set TRAE_CONFIG_PATH or place the file in the working directory."
+        )

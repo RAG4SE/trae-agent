@@ -18,10 +18,16 @@ class OpenRouterProvider(ProviderConfig):
     """OpenRouter provider configuration."""
 
     def create_client(
-        self, api_key: str, base_url: str | None, api_version: str | None
+        self, api_key: str | None = None, base_url: str | None = None, api_version: str | None = None
     ) -> openai.OpenAI:
         """Create OpenAI client with OpenRouter base URL."""
-        return openai.OpenAI(api_key=api_key, base_url=base_url)
+        # Use default OpenRouter base URL
+        final_base_url = base_url or "https://openrouter.ai/api/v1"
+        # Get API key from environment variable
+        final_api_key = api_key or os.getenv('OPENROUTER_API_KEY')
+        if not final_api_key:
+            raise ValueError("OPENROUTER_API_KEY environment variable is required")
+        return openai.OpenAI(api_key=final_api_key, base_url=final_base_url)
 
     def get_service_name(self) -> str:
         """Get the service name for retry logging."""
@@ -66,9 +72,4 @@ class OpenRouterClient(OpenAICompatibleClient):
     """OpenRouter client wrapper that maintains compatibility while using the new architecture."""
 
     def __init__(self, model_config: ModelConfig):
-        if (
-            model_config.model_provider.base_url is None
-            or model_config.model_provider.base_url == ""
-        ):
-            model_config.model_provider.base_url = "https://openrouter.ai/api/v1"
         super().__init__(model_config, OpenRouterProvider())

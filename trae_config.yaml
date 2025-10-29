@@ -19,15 +19,10 @@ mcp_servers:
 lakeview:
     model: lakeview_model
 
-model_providers:
-    dashscope:
-        api_key: sk-abb054210aaa49d69cf797b925432ee5
-        provider: dashscope
-
 models:
     trae_agent_model:
-        model_provider: dashscope
-        model: qwen3-next-80b-a3b-instruct
+        model_provider: deepseek
+        model: deepseek-chat
         max_tokens: 4096
         temperature: 0.5
         top_p: 1
@@ -35,6 +30,15 @@ models:
         max_retries: 10
         parallel_tool_calls: true
     lakeview_model:
+        model_provider: deepseek
+        model: deepseek-chat
+        max_tokens: 4096
+        temperature: 0.5
+        top_p: 1
+        top_k: 0
+        max_retries: 10
+        parallel_tool_calls: true
+    json_formatter_model:
         model_provider: dashscope
         model: qwen3-next-80b-a3b-instruct
         max_tokens: 4096

@@ -4,6 +4,7 @@
 """OpenAI API client wrapper with tool integration."""
 
 import json
+import os
 
 import openai
 from openai.types.responses import (
@@ -29,7 +30,12 @@ class OpenAIClient(BaseLLMClient):
     def __init__(self, model_config: ModelConfig):
         super().__init__(model_config)
 
-        self.client: openai.OpenAI = openai.OpenAI(api_key=self.api_key, base_url=self.base_url)
+        # Get API key from environment variable
+        api_key = os.getenv('OPENAI_API_KEY')
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY environment variable is required")
+
+        self.client: openai.OpenAI = openai.OpenAI(api_key=api_key)
         self.message_history: ResponseInputParam = []
 
     def set_chat_history(self, messages: list[LLMMessage]) -> None:
