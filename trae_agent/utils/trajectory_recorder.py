@@ -1,10 +1,6 @@
 # Copyright (c) 2025 ByteDance Ltd. and/or its affiliates
 # SPDX-License-Identifier: MIT
 
-# TODO: remove these annotations by defining fine-grained types
-# pyright: reportExplicitAny=false
-# pyright: reportArgumentType=false
-# pyright: reportAny=false
 
 """Trajectory recording functionality for Trae Agent."""
 
