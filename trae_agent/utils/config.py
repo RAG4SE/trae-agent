@@ -143,6 +143,7 @@ class Config:
     def create(
         cls,
         *,
+        config_dict: dict | None = None,
         config_file: str | None = None,
         config_string: str | None = None,
     ) -> "Config":
@@ -151,7 +152,9 @@ class Config:
 
         # Parse YAML config from file or string
         try:
-            if config_file is not None:
+            if config_dict is not None:
+                yaml_config = config_dict
+            elif config_file is not None:
                 if config_file.endswith(".json"):
                     return cls.create_from_legacy_config(config_file=config_file)
                 with open(config_file, "r") as f:
@@ -162,7 +165,7 @@ class Config:
                 raise ConfigError("No config file or config string provided")
         except yaml.YAMLError as e:
             raise ConfigError(f"Error parsing YAML config: {e}") from e
-
+    
         config = cls()
 
         # Parse models and populate model_provider fields
