@@ -18,9 +18,10 @@ from trae_agent.utils.llm_clients.llm_client import LLMClient
 class JSONFormatterTool(Tool):
     """Tool for formatting answers in JSON format using a dedicated formatter LLM."""
 
-    def __init__(self, model_provider: str):
+    def __init__(self, model_provider: str, config: Config | None = None):
         """Initialize the JSON formatter tool."""
         super().__init__(model_provider)
+        self._config: Config | None = config
         self._formatter_model_config: ModelConfig | None = None
         self._formatter_llm_client: LLMClient | None = None
 
@@ -161,10 +162,16 @@ Please return valid JSON only, with no additional text or formatting."""
     def _get_task_description_from_trajectory(self) -> str:
         """Get the task description from trajectory file."""
         # Try to find trajectory file in common locations
-        trajectory_paths = [
+        trajectory_paths = []
+
+        # Check if we can get trajectory file from the agent config (if available)
+        # Note: This is a limitation of the current architecture - tools don't have direct access
+        # to the agent's trajectory file path. We'll keep the existing fallbacks.
+
+        trajectory_paths.extend([
             Path.cwd() / "trajectory.json",
             Path(__file__).resolve().parents[2] / "trajectory.json",
-        ]
+        ])
 
         # Also check environment variable
         trajectory_env = os.getenv("TRAJECTORY_FILE")
@@ -274,13 +281,17 @@ Please return valid JSON only, with no additional text or formatting."""
     def _get_formatter_model_config(self) -> ModelConfig:
         """Load the formatter model configuration."""
         if self._formatter_model_config is None:
-            config_path = self._resolve_config_path()
-            try:
-                config = Config.create(config_file=str(config_path))
-            except (FileNotFoundError, ConfigError) as exc:
-                raise ValueError(
-                    f"Unable to load configuration for json_formatter_model: {exc}"
-                ) from exc
+            # Use provided config or create from file
+            if self._config is not None:
+                config = self._config
+            else:
+                config_path = self._resolve_config_path()
+                try:
+                    config = Config.create(config_file=str(config_path))
+                except (FileNotFoundError, ConfigError) as exc:
+                    raise ValueError(
+                        f"Unable to load configuration for json_formatter_model: {exc}"
+                    ) from exc
 
             models = config.models or {}
             formatter_config = models.get("json_formatter_model")

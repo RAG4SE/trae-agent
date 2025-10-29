@@ -40,10 +40,21 @@ class Agent:
 
                 self.agent_config: AgentConfig = config.trae_agent
 
-                self.agent: TraeAgent = TraeAgent(
-                    self.agent_config, allow_edit=allow_edit
-                )
+                try:
+                    self.agent: TraeAgent = TraeAgent(
+                        self.agent_config, allow_edit=allow_edit
+                    )
+                except Exception as e:
+                    raise ValueError(f"Failed to initialize TraeAgent: {e}") from e
+            case _:
+                raise ValueError(f"Unsupported agent type: {self.agent_type}")
 
+        # Verify that agent was successfully initialized
+        if self.agent is None:
+            raise ValueError("Agent initialization failed - agent is None")
+
+        # Set full config to agent for tools that need it
+        self.agent.set_full_config(config)
         self.agent.set_trajectory_recorder(self.trajectory_recorder)
 
     async def run(
